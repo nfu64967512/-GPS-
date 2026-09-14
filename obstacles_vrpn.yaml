@@ -1,0 +1,58 @@
+obstacles:
+  items:
+  - name: box1
+    kind: box
+    x: 0.4774
+    y: -0.4243
+    z_bottom: 0.9209
+    size:
+    - 0.4
+    - 0.4
+    - 0.5
+    yaw_deg: 0.02
+    source: vrpn
+    tracker: box1
+    vrpn_z: 1.4209
+    note: '立放?: 頂面高 1.42 m 不像任一邊 (箱子不在地上?), 視為最長邊垂直, 底面 0.40×0.40'
+  - name: box2
+    kind: box
+    x: -1.6801
+    y: -0.5335
+    z_bottom: 0.0297
+    size:
+    - 0.4
+    - 0.4
+    - 0.5
+    yaw_deg: 0.03
+    source: vrpn
+    tracker: box2
+    vrpn_z: 0.5297
+    note: '立放: 頂面高 0.53 m ≈ 0.50 邊, 底面 0.40×0.40'
+  - name: box3
+    kind: box
+    x: -0.8062
+    y: 0.8869
+    z_bottom: 0.95
+    size:
+    - 0.4
+    - 0.4
+    - 0.5
+    yaw_deg: -0.95
+    source: vrpn
+    tracker: box3
+    vrpn_z: 1.45
+    note: '立放?: 頂面高 1.45 m 不像任一邊 (箱子不在地上?), 視為最長邊垂直, 底面 0.40×0.40'
+  - name: box4
+    kind: box
+    x: 0.5814
+    y: 1.9266
+    z_bottom: 0.0133
+    size:
+    - 0.5
+    - 0.5
+    - 0.35
+    yaw_deg: 0.29
+    source: vrpn
+    tracker: box4
+    vrpn_z: 0.3633
+    note: '躺放: 頂面高 0.36 m ≈ 0.35 邊, 底面 0.50×0.50'

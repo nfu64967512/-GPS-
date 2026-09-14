@@ -1,0 +1,188 @@
+# ============================================================
+# Indoor Trajectory Studio — 預設設定
+# 單位：公尺 / 公尺每秒 / 秒 / 度
+# ============================================================
+
+# ---- 動作捕捉有效飛行空間 (房間座標, 中心為原點) ----
+volume:
+  size_x: 5.0          # 東西向總長 (m)
+  size_y: 5.0          # 南北向總長 (m)
+  size_z: 3.0          # 垂直總高 (m, 0 = 地板)
+
+# ---- 安全邊界 (從牆/地板/天花板往內縮) ----
+margin:
+  wall: 0.5            # 水平離牆 (m)
+  floor: 0.6           # 離地板 (m) -> z 下限 = floor
+  ceiling: 0.6         # 離天花板 (m) -> z 上限 = size_z - ceiling
+
+# ---- 飛行參數 ----
+flight:
+  cruise_speed: 0.5    # 巡航速度 (m/s); 室內建議 0.3 ~ 0.8
+  max_speed: 1.0       # 安全上限 (m/s); 超過會被擋下
+  target_duration: 270 # 目標純飛行工時 (s); 需求 >=200, 目標 240~300
+  min_duration: 200    # 純飛行工時下限 (s)
+  max_duration: 300    # 純飛行工時上限 (s)
+  duration_basis: auto # 工時「以什麼為準」來算圈數 / 判定 200~300 s:
+                       #   auto   = AUTO 任務 (.waypoints 上傳) 的航線時間 (含進場、不含起飛/降落) —— 只飛 AUTO 請用這個 (預設)
+                       #   guided = GUIDED 串流軌跡時間 (純水平剖面, 舊行為); AUTO 通常比它長 5~25 s
+  sample_dt: 0.05      # 軌跡時間取樣間隔 (s) -> 20 Hz, 給 CSV / GUIDED 串流
+  laps: auto           # auto = 依目標工時 (依 duration_basis) 自動算圈數; 或給整數固定圈數
+  # -- 動態速度剖面 (工時預估 + GUIDED 重取時, 貼近室內多旋翼實飛) --
+  # 註: 這些是刻意調低的「室內保守值」, 皆遠低於 ArduCopter 4.x 原廠預設
+  #     (WPNAV_ACCEL=250 cm/s²、WPNAV_JERK=5、WPNAV_SPEED_UP=250 cm/s²)。
+  #     要貼近實機請往上校準到你飛控的 WPNAV_* 實際值。
+  speed_profile: dynamic # dynamic=加減速+轉角減速+jerk (預設) | constant=舊版定速(對照)
+  accel: 1.0           # 沿軌加/減速上限 (m/s²); 設 1.0 = WPNAV_ACCEL 100 cm/s² (原廠 250)
+  lat_accel: 1.0       # 轉彎向心加速度上限 (m/s²); 決定轉角/曲線的過彎速度。
+                       # 保守設 = accel。實機 AUTO 的轉角加速度為 WPNAV_ACCEL_C,
+                       # 內定 0 表示 2×WPNAV_ACCEL; 要貼近實機 AUTO 可設成 2×accel。
+  jerk: 1.0            # S 曲線急動度 (m/s³); 設 1.0 = WPNAV_JERK 1 (原廠 5)。室內低速主導項
+  speed_up: 1.0        # 上升速度上限 (m/s) = WPNAV_SPEED_UP 100 cm/s² (原廠 250, 室內調低)
+  speed_down: 0.6      # 下降速度上限 (m/s) = WPNAV_SPEED_DN (原廠 150 cm/s²)
+  corner_min_speed: 0.05 # 硬轉角最低通過速度 (m/s); 180 度折返 ≈ 近懸停再出發
+
+# ---- 垂直高度調變 (3D 化, 給預測模型更好的測試資料) ----
+altitude:
+  mode: sine           # sine | triangle | smooth_random | stair
+                       #   stair = 階梯狀升降: 平飛保持高度 -> 升/降一階 -> 平飛 ..., 逐階升到頂再逐階降到底
+  cycles: 6            # 全程高度起伏次數 (建議 4 ~ 8); stair 時一次起伏 = 逐階升到頂 + 逐階降到底
+                       #   高度是「沿路徑弧長」的函數 (同 AUTO 航點內插行為)。waypoints.repeat=do_jump 時
+                       #   每圈必須相同 -> 自動調成每圈 max(1, round(cycles/圈數)) 次 (GUI 會顯示實際值)
+  amplitude: auto      # auto = 用滿安全 z 帶的一半; 或給數值 (m)
+  base: auto           # auto = z 帶中點; 或給數值 (m)
+  seed: 0              # smooth_random 用的亂數種子
+  steps: 4             # stair 用: 由最低到最高分幾階 (每階高 = 2*amplitude/steps; 1 = 方波)
+  ramp_speed: auto     # stair 用: 階與階之間升降的垂直速度 (m/s)
+                       #   auto = 80% × min(flight.speed_up 或 speed_down, √(max_speed²−cruise_speed²))
+                       #          上升/下降各自取; 第二項確保升降時 3D 合成速度不超過 max_speed
+                       #   或給數值 (升降皆用該速度; 超過 speed_up/down 會被 safety 警告, 3D 超速會擋下)
+
+# ---- 機頭朝向 ----
+yaw:
+  mode: travel         # travel(朝行進方向) | fixed | spin
+  fixed_deg: 0.0       # mode=fixed 時的固定航向 (deg, 0=東/+X)
+  spin_rate: 6.0       # mode=spin 時的旋轉速率 (deg/s)
+  max_rate: 90         # 機頭最大角速度 (deg/s); 轉角處 yaw 設點限速, 實機才追得上
+
+# ---- .waypoints (AUTO 任務) 匯出 ----
+waypoints:
+  origin_lat: 23.701745   # 假原點緯度 (室內僅用相對位置; 預設虎科大附近)
+  origin_lon: 120.424843  # 假原點經度
+  takeoff_alt: 1.0        # 起飛高度 (m, 相對 home)
+  takeoff_point: origin   # 飛機實際停放 / 解鎖起飛的位置 (房間 ENU):
+                          #   origin = 房間原點 (0,0)
+                          #   [x, y] = 指定座標, 通常由 GUI「從 VRPN 讀取」或 --cli vrpn --save 量 drone_01 寫入
+                          # 進場航點、AUTO 估時、起飛爬升檢查與匯出的 HOME 列都以它為準 ——
+                          # 放錯地方時, 起飛後飛向第一個航點的那一段可能穿過箱子
+  point_spacing: 0.25     # 航點間距 (m); 越小越平滑但點數越多 (室內 0.2~0.3 皆可)
+  use_spline: true        # 曲線(圓/8字)是否用 SPLINE 航點
+  spline_spacing_mult: 3.0 # 用 SPLINE 時間距放大倍率 (曲線可較疏, 減少點數)
+  sparse_straight: true   # 直線型軌跡 (往返/矩形/鋸齒): 以精確轉角為航點, 段內依 z_tol 精簡
+                          #   -> 高度不變 (振幅 0) 時往返 = A,B,A,B... 兩點一直線、矩形 = 每圈 4 角;
+                          #   線性升降 (triangle / stair 過渡) 只留折點; sine 等曲線由 z_tol 決定段長。
+                          #   false = 一律沿弧長依 point_spacing 密集取樣 (舊行為)
+  z_tol: 0.02             # 直線段航點精簡的高度容差 (m): 折線與高度剖面差 <= 此值就拿掉中間點。
+                          #   航點段越長, ArduPilot S-curve 每段能跑到的速度越高 (0.25 m 的段跑不到
+                          #   0.5 m/s; 約 >= 1 m 才跑得滿)。0 = 不精簡 (每 point_spacing 一點)
+  repeat: do_jump         # 圈數的重複方式: do_jump = 只寫一圈航點 + DO_JUMP(重複 圈數-1 次) + 收尾點
+                          #   (任務項數與圈數無關; 每圈高度起伏相同 -> 起伏次數自動調成每圈整數次)
+                          #   unroll = 全部圈數展開寫出 (舊行為; 各圈高度相位可錯開)
+  end_action: land        # land | rtl
+  turn_in_place:          # 到航點「停下 -> 原地轉頭朝下一段 -> 再前進」(只影響 AUTO 任務 .waypoints; GUIDED / CSV 不變)
+    enabled: false        # 功能開關。開啟時轉角航點後面多寫兩項 CONDITION_YAW(115) + NAV_DELAY(93):
+                          #   飛機在該航點完全停下、懸停轉頭 NAV_DELAY 秒後才飛下一段 (DO_JUMP block 裡的每圈都轉)。
+                          #   轉頭點越多、每個停越久, AUTO 航線時間越長 (自動圈數會跟著減少)
+    min_turn_deg: 30      # 水平轉向角 >= 此值 (deg) 的航點才停下轉頭; 小角度照常邊飛邊轉 (WP_YAW_BEHAVIOR)
+    rate_deg_s: 45        # 轉頭角速度 (deg/s) = CONDITION_YAW param2; 飛控另受 ATC_SLEW_YAW 上限 (預設 60 deg/s)
+    settle_s: 1.0         # 轉完再多停的餘裕 (s)。NAV_DELAY = 要轉的角度 / rate_deg_s + settle_s (進位到 0.1 s)
+    curves: false         # 曲線 pattern (圓 / 8字 / 隨機手飛) 的航點也套用 (預設否: 只在直線型的轉角與進場繞障點轉)
+    u_turn_dir: cw        # 原路折返 (≈180°, 例如往返的兩端) 往哪邊轉: cw 順時針 | ccw 逆時針 (最短方向不明確時才用)
+  max_waypoints: 1000     # 高精度版超過此數則警告 (現代 Pixhawk 可數千; 舊板請調小)
+  fc_budget: 650          # 精簡(上飛控)版的「總任務項」上限, 保證寫得進飛控
+  accept_radius: 0.05     # 航點接受半徑 (m) = WPNAV_RADIUS 5cm; 決定 AUTO 切角與轉角速度
+  land_speed: 0.4         # LAND 下降速度 (m/s) ≈ LAND_SPEED; AUTO 工時預估用
+
+# ---- GUIDED 即時串流 ----
+guided:
+  connection: "tcp:127.0.0.1:5760"  # SITL; 實機可用 udp:0.0.0.0:14550 或 COMx
+  takeoff_alt: 1.0        # 起飛高度 (m)
+  send_yaw: true          # 是否一併送 yaw 設點
+  send_velocity: true     # 是否送速度前饋 (較平滑)
+
+# ---- 障礙物 (箱子) 與水平避障 ----
+#   箱子上貼動捕光球, 在 Motive 建成 rigid body 後由 VRPN 串流讀進來 (GUI「障礙物」頁 / CLI vrpn),
+#   或直接把已知座標寫在 items。路徑一律「繞開」(水平) 不「越過」: 規劃時障礙物視為無限高的垂直柱。
+obstacles:
+  enabled: true          # false = 不改道 (仍會顯示障礙物, 且穿過時安全檢查會擋下)
+  drone_size: [0.50, 0.50, 0.15] # 機身尺寸 [長 x, 寬 y, 高 z] (m)。規劃的是機身『參考點』的路徑:
+                         #   水平會碰到東西的是離中心最遠的角 -> 半對角 √((長/2)²+(寬/2)²);
+                         #   50×50 cm -> 0.354 m (不是 0.25!)。垂直見下面的 marker_height
+  marker_height: 0.15    # 停在地上時, 光球 (= 動捕與飛控回報的參考點) 離地高度 (m)。
+                         #   光球全貼在頂板 -> 參考點在機身上緣, 整個機體掛在規劃高度『下方』:
+                         #   離地與越過箱子的餘裕要從這個值扣, 不是從半高扣。
+                         #   留空 (null) = 退回「參考點在機身中心」的假設 (上下各半高)
+  marker_above: 0.03     # 光球本身高出頂板的部分 (m); 決定離天花板與起飛爬升柱的上緣
+  clearance: 0.5         # 路徑中心離障礙物外緣的最小水平距離 (m)。auto = 半對角 + 航點切角 + 0.10 追蹤餘裕。
+                         #   小於半對角會被安全檢查擋下 (那表示機身一定碰得到)
+  corner_segments: 2     # 繞過箱角時每 90° 用幾段折線 (越少航點越少但繞得越開; 1 = 直接切 45° 角)
+  low_mode: over         # 低矮箱子: over = 不繞, 路徑進入其禁區時拉高越過 (前後自動斜坡); around = 一律水平繞開
+  over_max_top: 0.6      # 箱頂 <= 此高度 (m) 才越過 (疊起來 / 放桌上的箱子會超過 -> 繞開)
+  vertical_clearance: 0.5  # 越過時路徑離箱頂的最小垂直距離 (m); 箱頂 + 此值超過天花板邊界的也改為繞開。
+                         #   小於機身半高會被擋下 (機身底部已經碰到箱頂); 建議 >= 半高 + 0.15 下洗餘裕
+  over_ramp_speed: auto  # 越過前後斜坡的垂直速度 (m/s); auto = 80% × min(speed_up/down, √(max_speed²−cruise²))
+  items: []              # 已知障礙物 (房間 ENU, m; 與飛控 EKF 原點同一座標系)。每項:
+                         #   - {name: box1, kind: box, x: 1.0, y: 0.5, z_bottom: 0, size: [0.6, 0.4, 0.5], yaw_deg: 0}
+                         #   - {name: m1, kind: points, points: [[x, y, z], ...]}   光球座標 -> XY 凸包底面, 頂 = 最高光球
+  vrpn:
+    server: "192.168.8.206:3883"  # Motive 電腦的 IP (Data Streaming pane -> VRPN Broadcast Port 3883); 同一台可用 localhost:3883
+    seconds: 2.0              # 收幾秒 (取每個 rigid body 最後一筆)
+    axes: y_up                # Motive 的 Up Axis: y_up (預設) -> ENU (x, -z, y); z_up -> 不轉; 或自訂 'x,-z,y'
+    offset: [0.0, 0.0, 0.0]   # 讀進來的座標再平移 (Motive 原點 != 飛控 EKF 原點時)
+    trackers: []              # 只讀這些 rigid body 名稱 (空 = 全部)
+    exclude: [drone_01]       # 這些 rigid body 不當障礙物 (無人機自己!)
+    drone: drone_01           # 飛機的 rigid body 名稱: 讀進來當起飛點, 且絕不會變成障礙物
+    takeoff_from_drone: true  # 讀取時是否用飛機位置更新 waypoints.takeoff_point
+    mode: each_box            # each_box = 每個 rigid body 一個箱子; hull = 全部位置合成一個障礙物 (XY 凸包)
+    box_size: [0.35, 0.40, 0.50] # each_box: 箱子三邊 (m; 實驗用箱 35×40×50 cm)。orientation=fixed 時 = [長 x, 寬 y, 高 z]
+    orientation: auto_square  # 同一種箱子有躺有立: 用量到的頂面高度判斷哪一邊垂直 (pivot 需 top/center), 底面 = 另外兩邊
+                              #   auto_square = 底面保守取較長邊的正方形 (VRPN 看不出哪邊沿 x; 預設)
+                              #   auto_long_x / auto_long_y = 長邊沿 x / 沿 y;  fixed = 一律照 box_size 的 x y z
+    height_tol: 0.08          # 自動判斷時頂面高度與邊長的容許差 (m; 光球中心略高於箱面)
+    sizes: {}                 # 個別指定: {box3: [0.50, 0.40, 0.35]} (優先於自動判斷; 順序 x y z)
+    pivot: top                # rigid body 樞紐點在箱子的 top (光球貼在頂面, 預設) | center | bottom
+
+# ---- 介面 ----
+ui:
+  preview_dpi: 130   # 中央 3D 預覽渲染解析度 (DPI); 高解析螢幕可調 140~170 更清晰
+
+# ---- 各 pattern 形狀微調 (fill = 佔可用盒的比例, 1.0=用滿) ----
+patterns:
+  circle:
+    radius_fill: 1.0
+    samples: 720
+  figure_eight:
+    width_fill: 1.0
+    height_fill: 1.0
+    samples: 960
+  rectangle:
+    width_fill: 1.0
+    height_fill: 1.0
+  reciprocate:
+    length_fill: 1.0
+    lane_offset_fill: 0.0   # 0=兩點一線往返(去回同線); >0 才錯開成兩條平行線(矩形迴圈)
+  zigzag:
+    width_fill: 1.0
+    height_fill: 1.0
+    teeth: 6                 # 鋸齒對角線段數
+  random_walk:               # 隨機手飛風格: 隨機轉折點 + 閉合平滑樣條 (同 seed 同路徑)。
+                             # 隨機飛行不重複: 不用 DO_JUMP (一律全展開), 預設整段就是一條路徑 (圈數 1)
+    seed: 0                  # 換 seed 就換一條路徑
+    n_points: auto           # auto = 依目標工時自動決定轉折點數 (路徑長 ≈ auto_length_frac × 工時 × 巡航速度,
+                             #        圈數自動為 1、整段不重複); 或給整數 (>=4, 路徑短時圈數會 >1 但仍全展開)
+    auto_length_frac: 1.0    # n_points=auto 時的長度比例 (1.0 -> AUTO 航線時間平均 ≈ 目標工時)
+    turn_sigma_deg: 60       # 每步轉向角標準差 (deg); 越大越亂、越小越像平滑巡航
+    step_min_fill: 0.35      # 每步步幅佔盒寬 (min(寬,高)) 的比例下限
+    step_max_fill: 0.9       # 上限
+    width_fill: 1.0
+    height_fill: 1.0
+    samples_per_seg: 60      # 每段樣條取樣點數 (密度; 匯出仍依 point_spacing 重取)

@@ -1,0 +1,9 @@
+# Indoor Trajectory Studio — dependencies
+# Python >= 3.10
+
+numpy>=1.24
+PyYAML>=6.0
+matplotlib>=3.7          # 3D 預覽 (嵌入 PyQt6)
+PyQt6>=6.5               # GUI
+PyQt6-Qt6>=6.5
+pymavlink>=2.4           # GUIDED 即時串流 / SITL 連線
